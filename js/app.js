@@ -380,6 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
     openModal('modal-add');
   });
 
+  document.getElementById('btn-batch-writeoff').addEventListener('click', openBatchWriteOff);
+  document.getElementById('btn-batch-record').addEventListener('click', openBatchRecord);
+
   document.querySelectorAll('.status-tabs .tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.status-tabs .tab').forEach(t => t.classList.remove('active'));
@@ -402,6 +405,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  document.getElementById('batch-actual-amount').addEventListener('input', updateBatchCalculations);
+  document.getElementById('batch-select-all').addEventListener('change', function() {
+    document.querySelectorAll('.batch-item-checkbox').forEach(cb => {
+      cb.checked = this.checked;
+    });
+    updateBatchCalculations();
+  });
+
+  document.getElementById('btn-save-batch-writeoff').addEventListener('click', saveBatchWriteOff);
+
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => {
       const modal = btn.closest('.modal');
@@ -419,3 +432,124 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-save-add').addEventListener('click', saveAdd);
   document.getElementById('btn-save-writeoff').addEventListener('click', saveWriteOff);
 });
+
+// Batch write-off functions
+function openBatchWriteOff() {
+  const pendingItems = Store.listPendingForBatch();
+
+  if (pendingItems.length === 0) {
+    showToast('没有待核销的记录', 'error');
+    return;
+  }
+
+  const listEl = document.getElementById('batch-list');
+  listEl.innerHTML = pendingItems.map(item => `
+    <div class="batch-item" onclick="event.preventDefault(); document.getElementById('cb-${item.id}').click();">
+      <input type="checkbox" class="batch-item-checkbox" id="cb-${item.id}" value="${item.id}" onchange="updateBatchCalculations()">
+      <div class="batch-item-info">
+        <div class="batch-item-title">${item.trip_start_date} ~ ${item.trip_end_date}</div>
+        <div class="batch-item-amount">总应补助金额：${formatMoney(item.total_subsidy_amount)}（${item.status}）</div>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('batch-select-all').checked = false;
+  document.getElementById('batch-actual-amount').value = '';
+  document.getElementById('batch-total-subsidy').value = '';
+  document.getElementById('batch-diff').value = '';
+
+  openModal('modal-batch-writeoff');
+}
+
+function updateBatchCalculations() {
+  const checked = document.querySelectorAll('.batch-item-checkbox:checked');
+  let total = 0;
+  checked.forEach(cb => {
+    const item = Store.listPendingForBatch().find(d => d.id === cb.value);
+    if (item) total += item.total_subsidy_amount;
+  });
+
+  document.getElementById('batch-total-subsidy').value = formatMoney(total);
+
+  const actual = parseFloat(document.getElementById('batch-actual-amount').value) || 0;
+  const diff = actual - total;
+  document.getElementById('batch-diff').value = formatMoney(diff);
+
+  const selectAll = document.getElementById('batch-select-all');
+  const allBoxes = document.querySelectorAll('.batch-item-checkbox');
+  selectAll.checked = allBoxes.length > 0 && checked.length === allBoxes.length;
+}
+
+function saveBatchWriteOff() {
+  const checked = document.querySelectorAll('.batch-item-checkbox:checked');
+  const ids = Array.from(checked).map(cb => cb.value);
+  const actualAmount = document.getElementById('batch-actual-amount').value;
+
+  if (ids.length === 0) {
+    showToast('请至少选择一条记录', 'error');
+    return;
+  }
+
+  if (actualAmount === '') {
+    showToast('请输入核销总金额', 'error');
+    return;
+  }
+
+  try {
+    const result = Store.batchWriteOff(ids, parseFloat(actualAmount));
+    const msg = result.newStatus === '核销成功'
+      ? `批量核销成功，共 ${result.count} 条记录`
+      : `批量核销失败，共 ${result.count} 条记录，差额 ${formatMoney(result.diff)}`;
+    showToast(msg, result.newStatus === '核销成功' ? 'success' : 'error');
+    closeModal('modal-batch-writeoff');
+    loadStats();
+    loadList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function openBatchRecord() {
+  const logs = Store.listBatchLogs();
+
+  if (logs.length === 0) {
+    document.getElementById('batch-record-body').innerHTML = '<div style="text-align:center;padding:2rem;color:var(--muted);">暂无批量核销记录</div>';
+  } else {
+    const rowsHtml = logs.map((log, idx) => {
+      const status = statusMap[log.result] || statusMap['待核销'];
+      const itemsHtml = (log.items || []).map(item => `
+        <div class="batch-record-detail-item">
+          <span>${item.trip_start_date} ~ ${item.trip_end_date}</span>
+          <span>应补助 ${formatMoney(item.total_subsidy_amount)} / 实际 ${formatMoney(item.actual_subsidy_amount)}</span>
+        </div>
+      `).join('');
+
+      return `
+        <div style="border:1px solid var(--rule);border-radius:6px;margin-bottom:0.75rem;overflow:hidden;">
+          <table class="batch-record-table">
+            <tr>
+              <td>操作时间</td><td>${log.operated_at}</td>
+              <td>记录数</td><td>${log.record_count}</td>
+            </tr>
+            <tr>
+              <td>核销总金额</td><td>${formatMoney(log.total_actual_amount)}</td>
+              <td>总应补助金额</td><td>${formatMoney(log.total_subsidy_amount)}</td>
+            </tr>
+            <tr>
+              <td>差额</td><td>${formatMoney(log.diff_amount)}</td>
+              <td>结果</td><td><span class="status-tag ${status.class}">${status.text}</span></td>
+            </tr>
+          </table>
+          <div class="batch-record-detail">
+            <div class="batch-record-detail-title">明细</div>
+            ${itemsHtml || '<div class="batch-record-detail-item"><span>无明细</span></div>'}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    document.getElementById('batch-record-body').innerHTML = rowsHtml;
+  }
+
+  openModal('modal-batch-record');
+}
