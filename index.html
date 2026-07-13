@@ -10,7 +10,11 @@
   <div class="app">
     <header class="app-header">
       <h1>财务补助核销</h1>
-      <button class="btn btn-primary" id="btn-add">+ 新增</button>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="btn-batch-record">批量记录</button>
+        <button class="btn btn-primary" id="btn-batch-writeoff">批量核销</button>
+        <button class="btn btn-primary" id="btn-add">+ 新增</button>
+      </div>
     </header>
 
     <main class="app-main">
@@ -188,6 +192,60 @@
         <button class="modal-close" data-close>&times;</button>
       </div>
       <div class="modal-body" id="detail-body">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close>关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量核销弹窗 -->
+  <div class="modal" id="modal-batch-writeoff" style="display:none;">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>批量核销</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="batch-select-all">
+          <label>
+            <input type="checkbox" id="batch-select-all"> 全选
+          </label>
+        </div>
+        <div class="batch-list" id="batch-list"></div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>已选总应补助金额</label>
+            <input type="text" id="batch-total-subsidy" readonly>
+          </div>
+          <div class="form-field">
+            <label>核销总金额 <span class="required">*</span></label>
+            <input type="number" id="batch-actual-amount" step="0.01" min="0" placeholder="请输入核销总金额">
+          </div>
+        </div>
+        <div class="form-field">
+          <label>差额</label>
+          <input type="text" id="batch-diff" readonly>
+          <div class="hint">|核销总金额 - 总应补助金额| ≤ 5 时全部核销成功，否则全部核销失败</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-close>取消</button>
+        <button class="btn btn-primary" id="btn-save-batch-writeoff">确认核销</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 批量核销记录弹窗 -->
+  <div class="modal" id="modal-batch-record" style="display:none;">
+    <div class="modal-overlay"></div>
+    <div class="modal-content modal-content-lg">
+      <div class="modal-header">
+        <h3>批量核销记录</h3>
+        <button class="modal-close" data-close>&times;</button>
+      </div>
+      <div class="modal-body" id="batch-record-body">
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" data-close>关闭</button>
