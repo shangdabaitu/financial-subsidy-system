@@ -253,5 +253,19 @@ const Store = {
   listBatchLogs() {
     const logs = this._getBatchLogs();
     return logs.sort((a, b) => b.operated_at.localeCompare(a.operated_at));
+  },
+
+  delete(id) {
+    const data = this._getData();
+    const item = data.find(d => d.id === id);
+    if (!item) throw new Error('记录不存在');
+
+    const newData = data.filter(d => d.id !== id);
+    this._saveData(newData);
+
+    const logs = this._getLogs().filter(l => l.subsidy_id !== id);
+    this._saveLogs(logs);
+
+    return item;
   }
 };
