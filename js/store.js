@@ -2,6 +2,7 @@
 const Store = {
   KEY: 'subsidy_data',
   LOG_KEY: 'subsidy_logs',
+  BATCH_KEY: 'subsidy_batch_logs',
 
   _getData() {
     const raw = localStorage.getItem(this.KEY);
@@ -166,5 +167,91 @@ const Store = {
       .sort((a, b) => b.operated_at.localeCompare(a.operated_at));
 
     return { ...item, logs };
+  },
+
+  _getBatchLogs() {
+    const raw = localStorage.getItem(this.BATCH_KEY);
+    return raw ? JSON.parse(raw) : [];
+  },
+
+  _saveBatchLogs(logs) {
+    localStorage.setItem(this.BATCH_KEY, JSON.stringify(logs));
+  },
+
+  listPendingForBatch() {
+    const data = this._getData();
+    return data
+      .filter(d => d.status === '待核销' || d.status === '核销失败')
+      .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  },
+
+  batchWriteOff(ids, totalActualAmount) {
+    const data = this._getData();
+    const now = this._now();
+    const selectedItems = data.filter(d => ids.includes(d.id));
+
+    if (selectedItems.length === 0) throw new Error('请至少选择一条记录');
+
+    const totalSubsidySum = selectedItems.reduce((sum, item) => sum + item.total_subsidy_amount, 0);
+    const diff = parseFloat((totalActualAmount - totalSubsidySum).toFixed(2));
+    const newStatus = Math.abs(diff) <= 5 ? '核销成功' : '核销失败';
+
+    const batchLogId = this._genId();
+    const batchItems = [];
+
+    selectedItems.forEach(item => {
+      const actualAmount = parseFloat((totalActualAmount * item.total_subsidy_amount / totalSubsidySum).toFixed(2));
+      const itemDiff = parseFloat((item.total_subsidy_amount - actualAmount).toFixed(2));
+
+      const oldStatus = item.status;
+      item.actual_subsidy_amount = actualAmount;
+      item.subsidy_diff_amount = itemDiff;
+      item.status = newStatus;
+      item.updated_at = now;
+
+      const logs = this._getLogs();
+      logs.push({
+        id: this._genId(),
+        subsidy_id: item.id,
+        from_status: oldStatus,
+        to_status: newStatus,
+        actual_amount: actualAmount,
+        diff_amount: itemDiff,
+        fail_reason: null,
+        operated_at: now
+      });
+      this._saveLogs(logs);
+
+      batchItems.push({
+        subsidy_id: item.id,
+        trip_start_date: item.trip_start_date,
+        trip_end_date: item.trip_end_date,
+        total_subsidy_amount: item.total_subsidy_amount,
+        actual_subsidy_amount: actualAmount,
+        diff_amount: itemDiff
+      });
+    });
+
+    this._saveData(data);
+
+    const batchLogs = this._getBatchLogs();
+    batchLogs.push({
+      id: batchLogId,
+      operated_at: now,
+      record_count: selectedItems.length,
+      total_actual_amount: parseFloat(parseFloat(totalActualAmount).toFixed(2)),
+      total_subsidy_amount: parseFloat(totalSubsidySum.toFixed(2)),
+      diff_amount: diff,
+      result: newStatus,
+      items: batchItems
+    });
+    this._saveBatchLogs(batchLogs);
+
+    return { newStatus, diff, totalSubsidySum, count: selectedItems.length };
+  },
+
+  listBatchLogs() {
+    const logs = this._getBatchLogs();
+    return logs.sort((a, b) => b.operated_at.localeCompare(a.operated_at));
   }
 };
