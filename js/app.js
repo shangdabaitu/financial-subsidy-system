@@ -132,16 +132,18 @@ function renderCards(data) {
 
 function renderActionButtons(item, fullWidth = false) {
   const style = fullWidth ? 'style="flex:1"' : '';
+  const deleteBtn = `<button class="btn btn-danger btn-sm" ${style} onclick="openDelete('${item.id}')">删除</button>`;
 
   if (item.status === '待核销') {
-    return `<button class="btn btn-primary btn-sm" ${style} onclick="openWriteOff('${item.id}')">核销</button>`;
+    return `<button class="btn btn-primary btn-sm" ${style} onclick="openWriteOff('${item.id}')">核销</button>${deleteBtn}`;
   } else if (item.status === '核销失败') {
     return `
       <button class="btn btn-primary btn-sm" ${style} onclick="openWriteOff('${item.id}')">核销</button>
       <button class="btn btn-secondary btn-sm" ${style} onclick="openDetail('${item.id}')">详情</button>
+      ${deleteBtn}
     `;
   } else {
-    return `<button class="btn btn-secondary btn-sm" ${style} onclick="openDetail('${item.id}')">详情</button>`;
+    return `<button class="btn btn-secondary btn-sm" ${style} onclick="openDetail('${item.id}')">详情</button>${deleteBtn}`;
   }
 }
 
@@ -431,6 +433,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-save-add').addEventListener('click', saveAdd);
   document.getElementById('btn-save-writeoff').addEventListener('click', saveWriteOff);
+  document.getElementById('btn-confirm-delete').addEventListener('click', confirmDelete);
 });
 
 // Batch write-off functions
@@ -552,4 +555,29 @@ function openBatchRecord() {
   }
 
   openModal('modal-batch-record');
+}
+
+// Delete functions
+function openDelete(id) {
+  const item = currentData.find(d => d.id === id);
+  if (!item) return;
+
+  document.getElementById('delete-info').textContent =
+    `出差日期：${item.trip_start_date} ~ ${item.trip_end_date}，总应补助金额：${formatMoney(item.total_subsidy_amount)}`;
+  document.getElementById('btn-confirm-delete').dataset.id = id;
+
+  openModal('modal-delete');
+}
+
+function confirmDelete() {
+  const id = document.getElementById('btn-confirm-delete').dataset.id;
+  try {
+    Store.delete(id);
+    showToast('删除成功');
+    closeModal('modal-delete');
+    loadStats();
+    loadList();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
