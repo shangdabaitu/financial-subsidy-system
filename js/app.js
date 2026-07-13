@@ -444,13 +444,13 @@ function openBatchWriteOff() {
 
   const listEl = document.getElementById('batch-list');
   listEl.innerHTML = pendingItems.map(item => `
-    <div class="batch-item" onclick="event.preventDefault(); document.getElementById('cb-${item.id}').click();">
+    <label class="batch-item">
       <input type="checkbox" class="batch-item-checkbox" id="cb-${item.id}" value="${item.id}" onchange="updateBatchCalculations()">
       <div class="batch-item-info">
         <div class="batch-item-title">${item.trip_start_date} ~ ${item.trip_end_date}</div>
         <div class="batch-item-amount">总应补助金额：${formatMoney(item.total_subsidy_amount)}（${item.status}）</div>
       </div>
-    </div>
+    </label>
   `).join('');
 
   document.getElementById('batch-select-all').checked = false;
