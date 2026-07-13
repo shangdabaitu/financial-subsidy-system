@@ -168,6 +168,10 @@ body {
   max-width: 640px;
 }
 
+.modal-content-sm {
+  max-width: 400px;
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;
@@ -205,6 +209,15 @@ body {
 
 .btn-secondary:hover {
   background: var(--bg);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
 }
 
 .btn-sm {
