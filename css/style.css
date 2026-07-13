@@ -104,6 +104,13 @@ body {
   background: var(--bg);
 }
 
+.batch-item input[type="checkbox"] {
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .batch-item-info {
   flex: 1;
 }
